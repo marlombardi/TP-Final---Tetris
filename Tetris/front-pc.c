@@ -4,8 +4,6 @@
   @author   Augusto Milani
  ******************************************************************************/
 
-//TODO #include "front-pc.h"
-
 #include <stdio.h>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
@@ -19,11 +17,13 @@ typedef struct {
 		bool stop;						// Bandera para menú principal y pausa.
 	} argument_t;
 
+static int SCREEN_WIDTH, SCREEN_HEIGHT, TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT;
+static int dx, dy;	//Centrar imagen en pantalla.
+static float scale_image_x, scale_image_y;
+
 static void must_init (bool test, const char *description);
-static void stop(argument_t *argument);
-static void play(argument_t *argument, ALLEGRO_BITMAP *background,
-								int SCREEN_WIDTH, int SCREEN_HEIGHT,
-								int BACK_WIDTH, int BACK_HEIGHT);
+static void stop(argument_t *argument, ALLEGRO_BITMAP *title);
+static void play(argument_t *argument, ALLEGRO_BITMAP *background);
 
 /*
 typedef struct {
@@ -83,27 +83,33 @@ int main() {
 	al_register_event_source(argument.queue, al_get_display_event_source(display));
 	al_register_event_source(argument.queue, al_get_mouse_event_source());
 
-	int SCREEN_WIDTH = al_get_display_width(display);
-	int SCREEN_HEIGHT = al_get_display_height(display);
+	SCREEN_WIDTH = al_get_display_width(display);
+	SCREEN_HEIGHT = al_get_display_height(display);
 
-	int TITLE_WIDTH = al_get_bitmap_width(title);
-	int TITLE_HEIGHT = al_get_bitmap_height(title);
+	TITLE_WIDTH = al_get_bitmap_width(title);
+	TITLE_HEIGHT = al_get_bitmap_height(title);
 
-	int BACK_WIDTH = al_get_bitmap_width(title);
-	int BACK_HEIGHT = al_get_bitmap_height(title);
+	BACK_WIDTH = al_get_bitmap_width(background);
+	BACK_HEIGHT = al_get_bitmap_height(background);
 
+	float scale_x = (float)SCREEN_WIDTH / BACK_WIDTH;
+	float scale_y = (float)SCREEN_HEIGHT / BACK_HEIGHT;
 
+	if (scale_x < scale_y) {
+	    scale_image_x = scale_x;
+	    scale_image_y = scale_x;
+	} else {
+	    scale_image_y = scale_y;
+	    scale_image_x = scale_y;
+	}
+
+	dx = (SCREEN_WIDTH - BACK_WIDTH * scale_image_x) / 2;
+	dy = (SCREEN_HEIGHT - BACK_HEIGHT * scale_image_y) / 2;
 
 	al_start_timer(timer);
 
-	/* Imprimo Menú del Juego */
-	al_draw_scaled_bitmap(title, 0, 0, TITLE_WIDTH, TITLE_HEIGHT,
-									 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
-									 0);
-	al_flip_display();
-
-	stop(&argument);
-	play(&argument, background, SCREEN_WIDTH, SCREEN_HEIGHT, BACK_WIDTH, BACK_HEIGHT);
+	stop(&argument, title);
+	play(&argument, background);
 
 	/* Finalización del Programa */
 	al_destroy_display(display);
@@ -121,7 +127,15 @@ static void must_init(bool test, const char *description) {
     exit(1);
 }
 
-void stop(argument_t *argument) {
+
+
+void stop(argument_t *argument, ALLEGRO_BITMAP *title) {
+	/* Imprimir el Menú del Juego */
+	al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
+	al_draw_scaled_bitmap(title, 0, 0, TITLE_WIDTH, TITLE_HEIGHT,
+						  dx, dy, TITLE_WIDTH * scale_image_x, TITLE_HEIGHT * scale_image_y, 0);
+	al_flip_display();
+
 	argument->stop = true;
 	while(argument->stop) {	//Mientras esté en pausa, no empieza.
 
@@ -150,9 +164,7 @@ void stop(argument_t *argument) {
 	}
 }
 
-void play(argument_t *argument, ALLEGRO_BITMAP *background,
-								int SCREEN_WIDTH, int SCREEN_HEIGHT,
-								int BACK_WIDTH, int BACK_HEIGHT) {
+void play(argument_t *argument, ALLEGRO_BITMAP *background) {
 	while(!(argument->flag)) {
 
 		al_wait_for_event(argument->queue, &(argument->event));
@@ -207,7 +219,7 @@ void play(argument_t *argument, ALLEGRO_BITMAP *background,
 			al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
 
 			al_draw_scaled_bitmap(background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
-										 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+										 dx, dy, BACK_WIDTH*scale_image_x, BACK_HEIGHT*scale_image_y,
 										 0);
 			al_flip_display();
 			argument->redraw = false;

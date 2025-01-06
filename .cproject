@@ -48,8 +48,12 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.182069020.50823012" name="front-pc.c" rcbsApplicability="disable" resourcePath="Tetris/front-pc.c" toolsToInvoke="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036.879225935">
+						<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036.879225935" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036"/>
+					</fileInfo>
+					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.182069020.1122605951" name="backend" rcbsApplicability="disable" resourcePath="Tetris/backend" toolsToInvoke=""/>
 					<sourceEntries>
-						<entry excluding="Tetris/front-pc.h|Tetris/backend.c|Tetris/prueba.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="Tetris/backend.c|Tetris/backend|Tetris/front-pc.h|Tetris/prueba.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
