@@ -17,13 +17,17 @@ typedef struct {
 		bool stop;						// Bandera para menú principal y pausa.
 	} argument_t;
 
-static int SCREEN_WIDTH, SCREEN_HEIGHT, TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT;
+static int TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT, BLOCK_WIDTH, BLOCK_HEIGHT;
 static int dx, dy;	//Centrar imagen en pantalla.
 static float scale_image_x, scale_image_y;
 
+#define FILS 20
+#define COLS 10
+int matrix[FILS][COLS];
+
 static void must_init (bool test, const char *description);
 static void stop(argument_t *argument, ALLEGRO_BITMAP *title);
-static void play(argument_t *argument, ALLEGRO_BITMAP *background);
+static void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *blocka);
 
 /*
 typedef struct {
@@ -37,6 +41,7 @@ typedef struct {
 
 #define TITLE_FILE 		"title.png"
 #define BACKGROUND_FILE "background.png"
+#define BLOCKS_FILE 	"blocks.png"
 
 int main() {
 	srand(time(NULL));	//Semilla para función rand().
@@ -71,6 +76,11 @@ int main() {
 		fprintf(stderr, "Failed to load image: %d\n", al_get_errno());
 		return -1;
 	}
+	ALLEGRO_BITMAP *blocks = al_load_bitmap(BLOCKS_FILE);
+		if(!title) {
+			fprintf(stderr, "Failed to load image: %d\n", al_get_errno());
+			return -1;
+		}
 
 	ALLEGRO_TIMER *timer = al_create_timer(1.0);
 	must_init(timer, "timer");
@@ -83,14 +93,17 @@ int main() {
 	al_register_event_source(argument.queue, al_get_display_event_source(display));
 	al_register_event_source(argument.queue, al_get_mouse_event_source());
 
-	SCREEN_WIDTH = al_get_display_width(display);
-	SCREEN_HEIGHT = al_get_display_height(display);
+	int SCREEN_WIDTH = al_get_display_width(display);
+	int SCREEN_HEIGHT = al_get_display_height(display);
 
 	TITLE_WIDTH = al_get_bitmap_width(title);
 	TITLE_HEIGHT = al_get_bitmap_height(title);
 
 	BACK_WIDTH = al_get_bitmap_width(background);
 	BACK_HEIGHT = al_get_bitmap_height(background);
+
+	BLOCK_WIDTH = al_get_bitmap_width(blocks);
+	BLOCK_HEIGHT = al_get_bitmap_height(blocks);
 
 	float scale_x = (float)SCREEN_WIDTH / BACK_WIDTH;
 	float scale_y = (float)SCREEN_HEIGHT / BACK_HEIGHT;
@@ -108,8 +121,15 @@ int main() {
 
 	al_start_timer(timer);
 
+	int i, j;
+	for(i=0 ; i<FILS ; i++) {
+		for(j=0 ; j<COLS ; j++) {
+			matrix[i][j] = 1;
+		}
+	}
+
 	stop(&argument, title);
-	play(&argument, background);
+	play(&argument, background, blocks);
 
 	/* Finalización del Programa */
 	al_destroy_display(display);
@@ -164,7 +184,7 @@ void stop(argument_t *argument, ALLEGRO_BITMAP *title) {
 	}
 }
 
-void play(argument_t *argument, ALLEGRO_BITMAP *background) {
+void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *blocks) {
 	while(!(argument->flag)) {
 
 		al_wait_for_event(argument->queue, &(argument->event));
@@ -221,6 +241,28 @@ void play(argument_t *argument, ALLEGRO_BITMAP *background) {
 			al_draw_scaled_bitmap(background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
 										 dx, dy, BACK_WIDTH*scale_image_x, BACK_HEIGHT*scale_image_y,
 										 0);
+			int i, j;
+			for(i=0 ; i<FILS ; i++) {
+				for(j=0 ; j<COLS ; j++) {
+					if(matrix[i][j]) {
+						al_draw_scaled_bitmap(blocks, 0, 0,	BLOCK_WIDTH/4, BLOCK_HEIGHT/10,
+											 dx + (12+j)*31, dy + (5.1+i)*31,
+											 32, 32,	0);
+					}
+				}
+			}
+			/* NOTAS
+			 *
+			 * dx y dy indican la esquina izquierda del background, por lo que me desplazo
+			 * por cantidad de píxeles (26.4 aproximadamente) para cada bloque.
+			 *
+			 * Divido por 4.5 y 11 para ajustar con exactitud en base a la paleta de
+			 * bloques en el PNG usado.
+			 *
+			 * La escala se ajusta de manera global una vez al principio, TODO ver
+			 * con distintas resoluciones.
+			 *
+			 * */
 			al_flip_display();
 			argument->redraw = false;
 		}
