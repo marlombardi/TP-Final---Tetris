@@ -17,9 +17,9 @@ typedef struct {
 		bool stop;						// Bandera para menú principal y pausa.
 	} argument_t;
 
-static int TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT, BLOCK_WIDTH, BLOCK_HEIGHT;
-static int dx, dy;	//Centrar imagen en pantalla.
-static float scale_image_x, scale_image_y;
+static int TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT, TILE_WIDTH, TILE_HEIGHT;
+static int dx, dy, move;	//Centrar imagen en pantalla.
+static float scale;
 
 #define FILS 20
 #define COLS 10
@@ -102,22 +102,22 @@ int main() {
 	BACK_WIDTH = al_get_bitmap_width(background);
 	BACK_HEIGHT = al_get_bitmap_height(background);
 
-	BLOCK_WIDTH = al_get_bitmap_width(blocks);
-	BLOCK_HEIGHT = al_get_bitmap_height(blocks);
+	TILE_WIDTH = al_get_bitmap_width(blocks)/4;
+	TILE_HEIGHT = al_get_bitmap_height(blocks)/10;
 
-	float scale_x = (float)SCREEN_WIDTH / BACK_WIDTH;
-	float scale_y = (float)SCREEN_HEIGHT / BACK_HEIGHT;
-
-	if (scale_x < scale_y) {
-	    scale_image_x = scale_x;
-	    scale_image_y = scale_x;
-	} else {
-	    scale_image_y = scale_y;
-	    scale_image_x = scale_y;
+	float scale_x = (float)SCREEN_WIDTH / BACK_HEIGHT;
+	float scale_y = (float)SCREEN_HEIGHT / BACK_WIDTH;
+	if(scale_x < scale_y) {
+		scale = scale_x;
+	}
+	else {
+		scale = scale_y;
 	}
 
-	dx = (SCREEN_WIDTH - BACK_WIDTH * scale_image_x) / 2;
-	dy = (SCREEN_HEIGHT - BACK_HEIGHT * scale_image_y) / 2;
+	dy = (SCREEN_HEIGHT - BACK_HEIGHT * scale) / 2;	//Centro la imagen verticalmente
+	dx = (SCREEN_WIDTH - BACK_WIDTH * scale) / 2;		//Centro la imagen horizontalmente
+
+	move = TILE_WIDTH*scale;
 
 	al_start_timer(timer);
 
@@ -152,8 +152,10 @@ static void must_init(bool test, const char *description) {
 void stop(argument_t *argument, ALLEGRO_BITMAP *title) {
 	/* Imprimir el Menú del Juego */
 	al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
+	printf("%f", scale);
 	al_draw_scaled_bitmap(title, 0, 0, TITLE_WIDTH, TITLE_HEIGHT,
-						  dx, dy, TITLE_WIDTH * scale_image_x, TITLE_HEIGHT * scale_image_y, 0);
+						  dx, dy,
+						  TITLE_WIDTH * scale, TITLE_HEIGHT * scale, 0);
 	al_flip_display();
 
 	argument->stop = true;
@@ -239,15 +241,14 @@ void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *bloc
 			al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
 
 			al_draw_scaled_bitmap(background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
-										 dx, dy, BACK_WIDTH*scale_image_x, BACK_HEIGHT*scale_image_y,
+										 dx, dy, BACK_WIDTH * scale, BACK_HEIGHT * scale,
 										 0);
 			int i, j;
 			for(i=0 ; i<FILS ; i++) {
 				for(j=0 ; j<COLS ; j++) {
 					if(matrix[i][j]) {
-						al_draw_scaled_bitmap(blocks, 0, 0,	BLOCK_WIDTH/4, BLOCK_HEIGHT/10,
-											 dx + (12+j)*31, dy + (5.1+i)*31,
-											 32, 32,	0);
+						al_draw_scaled_bitmap(blocks,	0, 0,	TILE_WIDTH, TILE_HEIGHT,
+											 dx + move*(12+j), dy + move*(5+i),	TILE_WIDTH * scale, TILE_HEIGHT * scale,		0);
 					}
 				}
 			}
