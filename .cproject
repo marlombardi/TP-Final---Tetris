@@ -32,8 +32,8 @@
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.1626653589" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="gnu.c.link.option.libs.1111815" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="allegro"/>
+									<listOptionValue builtIn="false" value="allegro_ttf"/>
 									<listOptionValue builtIn="false" value="allegro_font"/>
-									<listOptionValue builtIn="false" value="allegro_primitives"/>
 									<listOptionValue builtIn="false" value="allegro_image"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.1635167107" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
@@ -48,12 +48,9 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
-					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.182069020.2134220327" name="front-pc.c" rcbsApplicability="disable" resourcePath="Tetris/front-pc.c" toolsToInvoke="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036.88529217">
-						<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036.88529217" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1715877036"/>
-					</fileInfo>
 					<fileInfo id="cdt.managedbuild.config.gnu.exe.debug.182069020.1122605951" name="backend" rcbsApplicability="disable" resourcePath="Tetris/backend" toolsToInvoke=""/>
 					<sourceEntries>
-						<entry excluding="Tetris/backend.c|Tetris/backend|Tetris/front-pc.h" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="Tetris/backend.c|Tetris/front-pc.h" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

@@ -7,27 +7,42 @@
 #include <stdio.h>
 #include <allegro5/allegro5.h>
 #include <allegro5/allegro_image.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_ttf.h>
 
 typedef struct {
 		ALLEGRO_EVENT event;			// Evento que ocurrió (ver switch).
 		ALLEGRO_KEYBOARD_STATE ks;		// Registro del teclado.
 		ALLEGRO_EVENT_QUEUE *queue;		// Registro de eventos.
-		bool flag;						// Bandera para terminar programa.
+		ALLEGRO_TIMER *timer;
+		ALLEGRO_FONT *font;
+		ALLEGRO_BITMAP *title;
+		ALLEGRO_BITMAP *background;
+		ALLEGRO_BITMAP *blocks;
+		bool flagMenu;						// Bandera para menú principal y pausa.
+		bool flagPlay;						// Bandera para terminar programa.
 		bool redraw;					// Bandera para dibujar.
-		bool stop;						// Bandera para menú principal y pausa.
 	} argument_t;
 
 static int TITLE_WIDTH, TITLE_HEIGHT, BACK_WIDTH, BACK_HEIGHT, TILE_WIDTH, TILE_HEIGHT;
 static int dx, dy, move;	//Centrar imagen en pantalla.
 static float scale;
+static argument_t argument;
 
 #define FILS 20
 #define COLS 10
 int matrix[FILS][COLS];
 
+static void check_init(void *pointer, const char *name);
 static void must_init (bool test, const char *description);
-static void stop(argument_t *argument, ALLEGRO_BITMAP *title);
-static void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *blocka);
+
+static void TetrisMenu();
+static void TetrisPlay();
+static void TetrisPause();
+
+static void menuDraw();
+static void playDraw();
+static void pauseDraw(int index);
 
 /*
 typedef struct {
@@ -50,60 +65,48 @@ int main() {
 	must_init(al_init(), "allegro");
 	must_init(al_install_keyboard(), "keyboard");
 	must_init(al_install_mouse(), "mouse");
+	must_init(al_init_font_addon(), "font");
+	must_init(al_init_ttf_addon(), "ttf");
+	must_init(al_init_image_addon(), "image addon");
+
+
 
 	al_set_new_display_flags(ALLEGRO_FULLSCREEN_WINDOW);
 	ALLEGRO_DISPLAY *display = al_create_display(100, 100);
-	if(!display) {
-		printf("couldn't load display\n");
-		return 1;
-	}
-	must_init(display, "display");
-
-	if(!al_init_image_addon()) {
-		printf("couldn't initialize image addon\n");
-		return 1;
-	}
+	check_init(display, "display");
 
 
+	argument.font = al_load_font("nintendo-nes-font.ttf", 24, 0);
+	check_init(argument.font, "tetris font TTF");
 
-	ALLEGRO_BITMAP *background = al_load_bitmap(BACKGROUND_FILE);
-	if(!background) {
-		fprintf(stderr, "Failed to load image: %d\n", al_get_errno());
-		return -1;
-	}
-	ALLEGRO_BITMAP *title = al_load_bitmap(TITLE_FILE);
-	if(!title) {
-		fprintf(stderr, "Failed to load image: %d\n", al_get_errno());
-		return -1;
-	}
-	ALLEGRO_BITMAP *blocks = al_load_bitmap(BLOCKS_FILE);
-		if(!title) {
-			fprintf(stderr, "Failed to load image: %d\n", al_get_errno());
-			return -1;
-		}
+	argument.background = al_load_bitmap(BACKGROUND_FILE);
+	check_init(argument.background, "background image");
+	argument.title = al_load_bitmap(TITLE_FILE);
+	check_init(argument.title, "title image");
+	argument.blocks = al_load_bitmap(BLOCKS_FILE);
+	check_init(argument.blocks, "blocks image");
 
-	ALLEGRO_TIMER *timer = al_create_timer(1.0);
-	must_init(timer, "timer");
-
-	argument_t argument;	//Estructura a pasar como argumento.
-
+	argument.timer = al_create_timer(1.0);
+	check_init(argument.timer, "timer");
 	argument.queue = al_create_event_queue();
-	must_init(argument.queue, "queue");
-    al_register_event_source(argument.queue, al_get_keyboard_event_source());
+	check_init(argument.queue, "queue");
+
+
+	al_register_event_source(argument.queue, al_get_keyboard_event_source());
 	al_register_event_source(argument.queue, al_get_display_event_source(display));
 	al_register_event_source(argument.queue, al_get_mouse_event_source());
 
 	int SCREEN_WIDTH = al_get_display_width(display);
 	int SCREEN_HEIGHT = al_get_display_height(display);
 
-	TITLE_WIDTH = al_get_bitmap_width(title);
-	TITLE_HEIGHT = al_get_bitmap_height(title);
+	TITLE_WIDTH = al_get_bitmap_width(argument.title);
+	TITLE_HEIGHT = al_get_bitmap_height(argument.title);
 
-	BACK_WIDTH = al_get_bitmap_width(background);
-	BACK_HEIGHT = al_get_bitmap_height(background);
+	BACK_WIDTH = al_get_bitmap_width(argument.background);
+	BACK_HEIGHT = al_get_bitmap_height(argument.background);
 
-	TILE_WIDTH = al_get_bitmap_width(blocks)/4;
-	TILE_HEIGHT = al_get_bitmap_height(blocks)/10;
+	TILE_WIDTH = al_get_bitmap_width(argument.blocks)/4;
+	TILE_HEIGHT = al_get_bitmap_height(argument.blocks)/10;
 
 	float scale_x = (float)SCREEN_WIDTH / BACK_HEIGHT;
 	float scale_y = (float)SCREEN_HEIGHT / BACK_WIDTH;
@@ -119,7 +122,7 @@ int main() {
 
 	move = TILE_WIDTH*scale;
 
-	al_start_timer(timer);
+	al_start_timer(argument.timer);
 
 	int i, j;
 	for(i=0 ; i<FILS ; i++) {
@@ -128,12 +131,13 @@ int main() {
 		}
 	}
 
-	stop(&argument, title);
-	play(&argument, background, blocks);
+	/* INICIA JUEGO */
+	TetrisMenu();
 
 	/* Finalización del Programa */
+	al_destroy_font(argument.font);
 	al_destroy_display(display);
-	al_destroy_timer(timer);
+	al_destroy_timer(argument.timer);
 	al_destroy_event_queue(argument.queue);
 
 	return 0;
@@ -143,90 +147,100 @@ int main() {
 static void must_init(bool test, const char *description) {
     if(test) return;
 
-    printf("couldn't initialize %s\n", description);
+    printf("couldn't initialize %s.\n", description);
     exit(1);
 }
 
+/* Chequeo si los punteros son NULL */
+static void check_init(void *pointer, const char *name) {
+    if (!pointer) {
+        fprintf(stderr, "couldn't iniatialize %s.\n", name);
+        exit(-1);
+    }
+}
 
+static void TetrisMenu() {
+	menuDraw();
+	argument.flagMenu = false;
 
-void stop(argument_t *argument, ALLEGRO_BITMAP *title) {
-	/* Imprimir el Menú del Juego */
-	al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
-	printf("%f", scale);
-	al_draw_scaled_bitmap(title, 0, 0, TITLE_WIDTH, TITLE_HEIGHT,
-						  dx, dy,
-						  TITLE_WIDTH * scale, TITLE_HEIGHT * scale, 0);
-	al_flip_display();
+	while( !(argument.flagMenu) ) {	//Mientras esté en pausa, no empieza.
 
-	argument->stop = true;
-	while(argument->stop) {	//Mientras esté en pausa, no empieza.
-
-		al_wait_for_event(argument->queue, &(argument->event));
-		switch ((argument->event).type) {
+		al_wait_for_event(argument.queue, &(argument.event));
+		switch ((argument.event).type) {
 			case ALLEGRO_EVENT_DISPLAY_CLOSE:
-				argument->flag = true;	// Al cerrar el display, termina el programa.
+				argument.flagMenu = true;	// Al cerrar el display, termina el programa.
 				break;
 
 			case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
-				argument->stop = false;
+				TetrisPlay();
 				break;
 
 			case ALLEGRO_EVENT_KEY_CHAR:
-				al_get_keyboard_state(&(argument->ks));
-				argument->stop = false;
+				al_get_keyboard_state(&(argument.ks));
 
-				if(al_key_down(&(argument->ks), ALLEGRO_KEY_ESCAPE)) {
-					argument->flag = true;	//Al presionar Esc, se detiene el programa.
+				if(al_key_down(&(argument.ks), ALLEGRO_KEY_ESCAPE)) {
+					argument.flagMenu = true;	//Al presionar Esc, se detiene el programa.
+				}
+				else {
+					TetrisPlay();
 				}
 				break;
 
 			default:
 				break;
 		}
+		/* Rutina de Impresión */
+		if(argument.redraw && !(argument.flagMenu) && al_is_event_queue_empty(argument.queue)) {
+			argument.redraw = false;
+			menuDraw();
+		}
 	}
 }
 
-void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *blocks) {
-	while(!(argument->flag)) {
+static void TetrisPlay() {
+	playDraw();
+	argument.flagPlay = false;
 
-		al_wait_for_event(argument->queue, &(argument->event));
-		switch ((argument->event).type) {
+	while( !(argument.flagPlay) ) {
+
+		al_wait_for_event(argument.queue, &(argument.event));
+		switch ((argument.event).type) {
 			case ALLEGRO_EVENT_DISPLAY_CLOSE:
-				argument->flag = true;	// Al cerrar el display, termina el programa.
+				argument.flagPlay = true;	// Al cerrar el display, termina el programa.
 				break;
 
 			case ALLEGRO_EVENT_TIMER:
-				if(!(argument->stop)) {
-					argument->redraw = true;
-					//TODO backend acá (pieza cae)**************
-				}
+				argument.redraw = true;
+				//TODO backend acá (pieza cae)**************
 				break;
 
 			case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
-				if((argument->event).mouse.button == 1) {	// Click izquierdo.
+				if((argument.event).mouse.button == 1) {	// Click izquierdo.
 					//TODO backend (pieza gira izq)***************
 				}
-				else if((argument->event).mouse.button == 2) {	//Click derecho.
+				else if((argument.event).mouse.button == 2) {	//Click derecho.
 					//TODO backend (pieza gira derecha)***************
 				}
 				break;
 
 			case ALLEGRO_EVENT_KEY_CHAR:
-				al_get_keyboard_state(&(argument->ks));
+				al_get_keyboard_state(&(argument.ks));
 
-				if(al_key_down(&(argument->ks), ALLEGRO_KEY_ESCAPE)) {
-					argument->flag = true;
+				if(al_key_down(&(argument.ks), ALLEGRO_KEY_ESCAPE)) {
+					TetrisPause();
 				}
 
 				else {
-					argument->redraw = true;
-					if(al_key_down(&(argument->ks), ALLEGRO_KEY_LEFT)) {
+					if(al_key_down(&(argument.ks), ALLEGRO_KEY_LEFT)) {
+						argument.redraw = true;
 						//TODO agregar backend acá*****************
 					}
-					if(al_key_down(&(argument->ks), ALLEGRO_KEY_RIGHT)) {
+					else if(al_key_down(&(argument.ks), ALLEGRO_KEY_RIGHT)) {
+						argument.redraw = true;
 						//TODO agregar backend acá*****************
 					}
-					if(al_key_down(&(argument->ks), ALLEGRO_KEY_DOWN)) {
+					else if(al_key_down(&(argument.ks), ALLEGRO_KEY_DOWN)) {
+						argument.redraw = true;
 						//TODO agregar backend acá*****************
 					}
 				}
@@ -237,22 +251,147 @@ void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *bloc
 		}
 
 		/* Rutina de Impresión */
-		if(argument->redraw && al_is_event_queue_empty(argument->queue)) {
-			al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
+		if(argument.redraw && !(argument.flagPlay) && al_is_event_queue_empty(argument.queue)) {
+			argument.redraw = false;
+			playDraw();
+		}
+	}
+}
 
-			al_draw_scaled_bitmap(background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
-										 dx, dy, BACK_WIDTH * scale, BACK_HEIGHT * scale,
-										 0);
-			int i, j;
-			for(i=0 ; i<FILS ; i++) {
-				for(j=0 ; j<COLS ; j++) {
-					if(matrix[i][j]) {
-						al_draw_scaled_bitmap(blocks,	0, 0,	TILE_WIDTH, TILE_HEIGHT,
-											 dx + move*(12+j), dy + move*(5+i),	TILE_WIDTH * scale, TILE_HEIGHT * scale,		0);
+static void TetrisPause() {
+	pauseDraw(0);
+
+	int index = 0;
+	pauseDraw(index);
+
+	al_flip_display();
+
+	bool resume = false;
+	while(!resume  ) {
+
+		al_wait_for_event(argument.queue, &(argument.event));
+		switch ((argument.event).type) {
+
+			case ALLEGRO_EVENT_DISPLAY_CLOSE:
+				argument.flagPlay = true;	// Al cerrar el display, termina el programa.
+				argument.flagMenu = true;
+				break;
+
+			case ALLEGRO_EVENT_KEY_CHAR:
+				al_get_keyboard_state(&(argument.ks));
+
+				if(al_key_down(&(argument.ks), ALLEGRO_KEY_ESCAPE)) {
+					resume = true;
+				}
+				else if(al_key_down(&(argument.ks), ALLEGRO_KEY_UP)) {
+					argument.redraw = true;
+					index--;
+				}
+				else if(al_key_down(&(argument.ks), ALLEGRO_KEY_DOWN)) {
+					argument.redraw = true;
+					index++;
+				}
+				else if(al_key_down(&(argument.ks), ALLEGRO_KEY_SPACE)) {
+					resume = true;
+					switch(index) {
+
+						case 0:	//CONTINUE
+							break;					//Continúa el juego.
+
+						case 1:	//RESTART
+							argument.redraw = true;
+							//TODO backend acá?? ni idea	//Reinicia el juego
+							break;
+
+						case 2:	//EXIT
+							argument.flagPlay = true;	//Vuelve al menú.
+							argument.redraw = true;
+							break;
+
+						case 3:	//CLOSE
+							argument.flagPlay = true;
+							argument.flagMenu = true;
+							break;
+
+						default:
+							break;
 					}
 				}
+				break;
+
+			case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
+				argument.flagPlay = true;
+				break;
+
+			default:
+				break;
+		}
+		if(argument.redraw && !resume && al_is_event_queue_empty(argument.queue)) {
+			if(index < 0) {
+				index = 3;
 			}
-			/* NOTAS
+			else if(index > 3) {
+				index = 0;
+			}
+
+			pauseDraw(index);
+			argument.redraw = false;
+		}
+	}
+}
+
+
+
+
+
+
+
+/* Imprimir el Menú del Juego */
+static void menuDraw() {
+	al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
+	al_draw_scaled_bitmap(argument.title, 0, 0, TITLE_WIDTH, TITLE_HEIGHT,
+						  dx, dy,
+						  TITLE_WIDTH * scale, TITLE_HEIGHT * scale, 0);
+	al_flip_display();
+}
+
+/* Imprimir el Juego con la Matriz */
+static void playDraw() {
+	al_clear_to_color(al_map_rgb(0, 0, 0));		// Limpio pantalla con negro.
+
+	al_draw_scaled_bitmap(argument.background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
+								 dx, dy, BACK_WIDTH * scale, BACK_HEIGHT * scale,
+								 0);
+	int i, j;
+	for(i=0 ; i<FILS ; i++) {
+		for(j=0 ; j<COLS ; j++) {
+			if(matrix[i][j]) {
+				al_draw_scaled_bitmap(argument.blocks,	0, 0,	TILE_WIDTH, TILE_HEIGHT,
+									 dx + move*(12+j), dy + move*(5+i),	TILE_WIDTH * scale, TILE_HEIGHT * scale,		0);
+			}
+		}
+	}
+	al_flip_display();
+}
+
+
+static void pauseDraw(int index) {
+	int pauseSelect[4] = {255, 255, 255, 255};
+	pauseSelect[index] = 0;
+
+	al_draw_scaled_bitmap(argument.background, 0, 0, BACK_WIDTH, BACK_HEIGHT,
+									 dx, dy, BACK_WIDTH * scale, BACK_HEIGHT * scale, 0);
+	al_draw_text(argument.font, al_map_rgb(255, 255, 255), dx + move*17, dy +move*10, ALLEGRO_ALIGN_CENTRE, "PAUSE");
+	al_draw_text(argument.font, al_map_rgb(255, 255, pauseSelect[0]), dx + move*12, dy +move*21, 0, "CONTINUE");
+	al_draw_text(argument.font, al_map_rgb(255, 255, pauseSelect[1]), dx + move*12, dy +move*22, 0, "RESTART");
+	al_draw_text(argument.font, al_map_rgb(255, 255, pauseSelect[2]), dx + move*12, dy +move*23, 0, "EXIT");
+	al_draw_text(argument.font, al_map_rgb(255, 255, pauseSelect[3]), dx + move*12, dy +move*24, 0, "CLOSE");
+
+	al_flip_display();
+}
+
+
+/* NOTAS
 			 *
 			 * dx y dy indican la esquina izquierda del background, por lo que me desplazo
 			 * por cantidad de píxeles (26.4 aproximadamente) para cada bloque.
@@ -264,8 +403,3 @@ void play(argument_t *argument, ALLEGRO_BITMAP *background, ALLEGRO_BITMAP *bloc
 			 * con distintas resoluciones.
 			 *
 			 * */
-			al_flip_display();
-			argument->redraw = false;
-		}
-	}
-}
