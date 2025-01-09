@@ -296,6 +296,7 @@ static void TetrisPause() {
 					switch(index) {
 
 						case 0:	//CONTINUE
+							argument.redraw = true;
 							break;					//Continúa el juego.
 
 						case 1:	//RESTART
